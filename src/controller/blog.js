@@ -1,4 +1,4 @@
-const { exec } = require("../db/exec");
+const { exec } = require("../db/mysql");
 
 
 /**
@@ -32,8 +32,8 @@ const getDetail = (id) => {
  * 创建博客
  * @param {postDate对象，包含了博客标题、博客内容、作者} blogData 
  */
-const createBlog = (blogData = {}) => {
-  const { title, content, author = "yang" } = JSON.parse(blogData);
+const createBlog = (blogData = {}, author) => {
+  const { title, content } = JSON.parse(blogData);
   if (!title) return Promise.reject("博客标题必填!");
   if (!content) return Promise.reject("博客内容必填!");
   const sql = `

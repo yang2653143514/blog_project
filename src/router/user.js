@@ -1,27 +1,21 @@
 const { SuccessModel, ErrorModel } = require("../models/resultModels");
 const { login } = require("../controller/user");
-const querystring = require("querystring");
-
-const getExpired = () => {
-  const date = new Date();
-  date.setTime(date.getTime() + 24 * 60 * 60 * 1000);
-  return date;
-};
+const { setRedis } = require("../db/redis")
 
 // 处理用户的路由
 const userRouter = (req, res) => {
-  const method = req.method;
-  const pathname = req.pathname;
+  const { method, pathname } = req;
 
   if (method === "GET" && pathname === "/api/user/login") {
-    return login(req.query).then((userData) => {
+    const { username, password } = req.query;
+    // const { username, password } = req.body;
+    return login(username, password).then((userData) => {
       if (userData.username) {
-        res.setHeader(
-          "Set-Cookie",
-          `username=${
-            userData.username
-          };path='/';httpOnly;expired=${getExpired()}`
-        );
+
+        req.session.username = userData.username;
+        req.session.realname = userData.realname;
+        setRedis(req.sessionId, req.session);
+
         return new SuccessModel(userData, "登录成功");
       } else {
         return new ErrorModel("登录失败");
@@ -30,9 +24,8 @@ const userRouter = (req, res) => {
   }
 
   if (method === "GET" && pathname === "/api/user/login-test") {
-    // const cookie = querystring.parse(req.headers.cookie) || {};
-    if (req.cookies.username) {
-      return Promise.resolve("已经登录" + req.cookies.username);
+    if (req.session.username) {
+      return Promise.resolve("已经登录" + req.session.username);
     } else {
       return Promise.resolve("尚未登录");
     }

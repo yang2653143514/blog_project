@@ -1,12 +1,11 @@
-const { exec } = require("../db/exec");
+const { exec } = require("../db/mysql");
 
 // 登录的数据操作
 /**
  * 登录用户
  * @param {暂未完成} query 
  */
-const login = (query) => {
-  const { username, password } = query;
+const login = (username, password) => {
   const sql = `select username, realname from user where username='${username}' and password='${password}'`;
   return exec(sql).then((data) => {
     return data[0] || {};
