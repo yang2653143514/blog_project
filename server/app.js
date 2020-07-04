@@ -3,6 +3,7 @@ const querystring = require("querystring");
 const blogRouter = require("./src/router/blog");
 const userRouter = require("./src/router/user");
 const { getRedis, setRedis } = require("./src/db/redis");
+const { accessLog, errorLog } = require("./src/utils/log");
 
 // SESSION_DATA 为存储的所有session，根据userId进行查询, 已被替换为redis
 // session:存储username和realname
@@ -58,6 +59,9 @@ const serverHandle = (req, res) => {
       // 处理博客
       const blogResult = blogRouter(req, res);
       if (blogResult) {
+        // 写日志
+        accessLog(`${req.method}  ${req.pathname} ${Date.now()}`);
+
         blogResult.then((blogData) => {
           if (needSetCookie) {
 						res.setHeader('Set-Cookie', `userId=${userId}; path=/; httpOnly; expires=${getCookieExpires()}`)
@@ -68,7 +72,7 @@ const serverHandle = (req, res) => {
       }
 
       // 处理用户
-      const userResult = userRouter(req, res);
+      let userResult = userRouter(req, res);
 
       if (userResult) {
         userResult.then((userData) => {
@@ -82,6 +86,7 @@ const serverHandle = (req, res) => {
 
       res.writeHeader(404, { "Content-type": "text/plain" });
       res.write("404 Not Fount");
+      errorLog(`${req.method}  ${req.pathname} ${Date.now()}`)
       res.end();
     })
     .catch((err) => console.error(err));

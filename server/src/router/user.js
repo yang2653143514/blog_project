@@ -1,13 +1,17 @@
 const { SuccessModel, ErrorModel } = require("../models/resultModels");
 const { login } = require("../controller/user");
-const { setRedis, delRedis } = require("../db/redis")
+const { setRedis, delRedis } = require("../db/redis");
+const { getPassWord } = require("../utils/cryp");
+const xss = require('xss');
 
 // 处理用户的路由
 const userRouter = (req, res) => {
   const { method, pathname } = req;
   if ((method === "POST" || method === "OPTIONS") && pathname === "/api/user/login") {
     // const { username, password } = req.query;
-    const { username, password } = req.body;
+    let { username, password } = req.body;
+    username = xss(username);
+    password = getPassWord(password);
     return login(username, password).then((userData) => {
       if (userData.username) {
 

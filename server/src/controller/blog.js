@@ -1,4 +1,4 @@
-const { exec } = require("../db/mysql");
+const { exec, escape } = require("../db/mysql");
 
 
 /**
@@ -7,9 +7,11 @@ const { exec } = require("../db/mysql");
  * @param {查询的关键字（模糊查询）} keyword 
  */
 const getList = (author, keyword) => {
+  author = escape(author);
+  keyword = escape(keyword);
   let sql = `select * from blog where 1=1 `;
   if (author) {
-    sql += `and author = '${author}' `;
+    sql += `and author = ${author} `;
   }
   if (keyword) {
     sql += `and title like '%${keyword}%' `;
@@ -22,6 +24,7 @@ const getList = (author, keyword) => {
  * @param {博客文章的id} id 
  */
 const getDetail = (id) => {
+  id = escape(id);
   const sql = `select * from blog where id=${id} `;
   return exec(sql).then((result) => {
     return result[0];
@@ -36,6 +39,9 @@ const createBlog = (blogData = {}, author) => {
   const { title, content } = blogData;
   if (!title) return Promise.reject("博客标题必填!");
   if (!content) return Promise.reject("博客内容必填!");
+  title = escape(title);
+  content = escape(content);
+  author = escape(author);
   const sql = `
     insert into blog (title, content, author, createTime) 
     values ('${title}', '${content}', '${author}', ${Date.now()})
@@ -54,6 +60,8 @@ const createBlog = (blogData = {}, author) => {
  */
 const deleteBlog = (id, author) => {
   if (!id) return Promise.reject("没有要删除的id!");
+  id = escape(id);
+  author = escape(author);
   const sql = `delete from blog where id=${id} and author='${author}' `;
   return exec(sql).then((result) => {
     if (result.affectedRows > 0) {
@@ -71,6 +79,9 @@ const deleteBlog = (id, author) => {
  */
 const updateBlog = (id, blogData = {}) => {
   const { title, content } = blogData;
+  id = escape(id);
+  author = escape(author);
+  content = escape(content);
   const sql = `update blog set title='${title}', content='${content}' where id=${id} `;
   return exec(sql).then((result) => {
     if (result.affectedRows > 0) {
