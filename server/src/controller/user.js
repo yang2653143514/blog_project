@@ -1,6 +1,5 @@
 const { exec, escape } = require("../db/mysql");
 
-// 登录的数据操作
 /**
  * 登录用户
  * @param {暂未完成} query 

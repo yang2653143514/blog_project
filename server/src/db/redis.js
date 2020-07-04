@@ -1,42 +1,8 @@
-const redis = require('redis');
-const { REDIS_CONF } = require('../conf/db');
-const redisClient = redis.createClient(REDIS_CONF);
+const redis = require("redis");
 
-const setRedis = (key, value) => {
-  if (typeof value === 'object') {
-    value = JSON.stringify(value);
-  }
-  redisClient.set(key, value, redis.print);
-}
+const redisClient = redis.createClient(6379, "127.0.0.1");
+redisClient.on("error", (err) => {
+  console.error(err);
+});
 
-const getRedis = (key) => {
-  const promise = new Promise((resolve, reject) => {
-    redisClient.get(key, (err, value) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      if (value === null) {
-        resolve(null);
-        return;
-      } 
-      // 因为可能需要的value是json，但返回的是字符串，所以转换一下
-      try {
-        resolve(JSON.parse(value))
-      } catch(err) {
-        resolve(value)
-      }
-    })
-  })
-  return promise;
-}
-
-delRedis = (key) => {
-  redisClient.del(key, redis.print);
-}
-
-module.exports = {
-  setRedis,
-  getRedis,
-  delRedis
-}
+module.exports = redisClient;

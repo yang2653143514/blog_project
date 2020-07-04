@@ -1,19 +1,21 @@
 {
-  "name": "blog_project",
-  "version": "1.0.0",
-  "description": "",
-  "main": "./bin/www.js",
+  "name": "express-generator",
+  "version": "0.0.0",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node ./bin/www",
     "dev": "cross-env NODE_ENV=dev nodemon ./bin/www.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "cross-env": "^7.0.2"
-  },
   "dependencies": {
+    "connect-redis": "^4.0.4",
+    "cookie-parser": "~1.4.4",
+    "cross-env": "^7.0.2",
+    "debug": "~2.6.9",
+    "express": "~4.16.1",
+    "express-session": "^1.17.1",
+    "http-errors": "~1.6.3",
+    "jade": "~1.11.0",
+    "morgan": "~1.9.1",
     "mysql": "^2.18.1",
     "redis": "^3.0.2",
     "xss": "^1.0.7"

@@ -7,13 +7,13 @@ const { exec, escape } = require("../db/mysql");
  * @param {查询的关键字（模糊查询）} keyword 
  */
 const getList = (author, keyword) => {
-  author = escape(author);
-  keyword = escape(keyword);
   let sql = `select * from blog where 1=1 `;
   if (author) {
+    author = escape(author);
     sql += `and author = ${author} `;
   }
   if (keyword) {
+    keyword = escape(keyword);
     sql += `and title like '%${keyword}%' `;
   }
   return exec((sql += "order by createTime desc;"));

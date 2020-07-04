@@ -1,128 +1,86 @@
-const url = require("url");
-const querystring = require("querystring");
-const blogRouter = require("./src/router/blog");
-const userRouter = require("./src/router/user");
-const { getRedis, setRedis } = require("./src/db/redis");
-const { accessLog, errorLog } = require("./src/utils/log");
+var createError = require("http-errors");
+var express = require("express");
+var path = require("path");
+const fs = require("fs");
+var cookieParser = require("cookie-parser");
+var logger = require("morgan");
 
-// SESSION_DATA 为存储的所有session，根据userId进行查询, 已被替换为redis
-// session:存储username和realname
+// session和redis做登录
+const session = require("express-session");
+const redisStore = require("connect-redis")(session);
 
-// 项目的服务器函数
-const serverHandle = (req, res) => {
-  req.query = querystring.parse(url.parse(req.url).query);
-  req.pathname = url.parse(req.url).pathname;
+const blogRouter = require("./src/routes/blog.js");
+const userRouter = require("./src/routes/user.js");
+//初始化一个app实例
+var app = express();
 
-  res.setHeader("Content-type", "application/json");
+const ENV = process.env.NODE_ENV;
 
-  // 解析cookie
-  req.cookies = {};
-  const cookiesStr = req.headers.cookie || "";
-  cookiesStr.split(";").forEach((cookie) => {
-    if (!cookie) {
-      return;
-    }
-    let key = cookie.split("=")[0];
-    let value = cookie.split("=")[1];
-    req.cookies[key] = value;
+// 写日志
+if (ENV !== "production") {
+  app.use(logger("dev", {}));
+} else {
+  const logFileName = path.join(__dirname, "logs", "access.log");
+  const writeStream = fs.createWriteStream(logFileName, {
+    flags: "a",
   });
-
-  // 解析session
-  let userId = req.cookies.userId;
-  let needSetCookie = false;
-  if (userId) {
-    if (!getRedis(userId)) {
-      // 有userId但是找不到对应的用户
-      setRedis(userId, null);
-    }
-  } else {
-    // 没有userId,自动设置userId,并且将userId加到cookie上
-    userId = Date.now() + "_" + Math.random();
-    setRedis(userId, null);
-    needSetCookie = true;
-  }
-
-  req.sessionId = userId;
-  getRedis(req.sessionId)
-    .then((sessionData) => {
-      if (sessionData === null) {
-        req.session = {};
-        setRedis(req.sessionId, null);
-      } else {
-        req.session = sessionData;
-      }
-      return getPostData(req);
+  app.use(
+    logger("combined", {
+      stream: writeStream,
     })
-    .then((postData) => {
-      req.body = postData;
-
-      // 处理博客
-      const blogResult = blogRouter(req, res);
-      if (blogResult) {
-        // 写日志
-        accessLog(`${req.method}  ${req.pathname} ${Date.now()}`);
-
-        blogResult.then((blogData) => {
-          if (needSetCookie) {
-						res.setHeader('Set-Cookie', `userId=${userId}; path=/; httpOnly; expires=${getCookieExpires()}`)
-					}
-          res.end(JSON.stringify(blogData));
-        })
-        return;
-      }
-
-      // 处理用户
-      let userResult = userRouter(req, res);
-
-      if (userResult) {
-        userResult.then((userData) => {
-          if (needSetCookie) {
-						res.setHeader('Set-Cookie', `userId=${userId}; path=/; httpOnly; expires=${getCookieExpires()}`)
-					}
-          res.end(JSON.stringify(userData));
-        });
-        return;
-      }
-
-      res.writeHeader(404, { "Content-type": "text/plain" });
-      res.write("404 Not Fount");
-      errorLog(`${req.method}  ${req.pathname} ${Date.now()}`)
-      res.end();
-    })
-    .catch((err) => console.error(err));
-};
-
-// 获取POST请求中的参数
-const getPostData = (req) => {
-  const promise = new Promise((resolve, reject) => {
-    if (req.method !== "POST" && req.method !== "OPTIONS") {
-      resolve({});
-      return;
-    }
-    // if (req.headers['Conetent-Type'] !== "application/json") {
-    //   resolve({});
-    //   return;
-    // }
-    let postData = "";
-    req.on("data", (chunk) => {
-      postData += chunk.toString();
-    });
-    req.on("end", () => {
-      if (!postData) {
-        resolve({});
-        return;
-      }
-      resolve(JSON.parse(postData));
-    });
-  });
-  return promise;
-};
-
-const getCookieExpires = () => {
-	const d = new Date()
-	d.setTime(d.getTime() + (24 * 60 * 60 * 1000))
-	return d.toGMTString()
+  );
 }
 
+//视图引擎设置
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'jade');
 
-module.exports = serverHandle;
+app.use(logger("dev", {}));
+//处理请求postdata数据,放在req.body中
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+//处理cookie,放在req.cookies中
+app.use(cookieParser());
+
+const redisClient = require("./src/db/redis.js");
+const sessionStore = new redisStore({
+  client: redisClient,
+});
+
+//处理session
+app.use(
+  session({
+    secret: "yang_123456",
+    cookie: {
+      // path:'/',//默认配置
+      // httpOnly:true,//默认配置
+      maxAge: 24 * 60 * 60 * 1000,
+    },
+    saveUninitialized: false, //是否保存未初始化的会话
+    resave: false, //是否允许session重新设置
+    // 设置了session存储到redis中,不设置存储到内存中
+    store: sessionStore,
+  })
+);
+
+//设置路由
+app.use("/api/blog", blogRouter);
+app.use("/api/user", userRouter);
+
+// catch 404 and forward to error handler
+app.use(function (req, res, next) {
+  next(createError(404));
+});
+
+// error handler
+app.use(function (err, req, res, next) {
+  // set locals, only providing error in development
+  res.locals.message = err.message;
+  res.locals.error = req.app.get("env") === "dev" ? err : {};
+
+  // render the error page
+  res.status(err.status || 500);
+  res.render("error");
+});
+
+module.exports = app;
